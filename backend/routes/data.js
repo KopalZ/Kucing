@@ -60,9 +60,9 @@ router.get('/cats', async (req, res) => {
             name: true, 
             shelterAddress: true, 
             phoneNumber: true,
-            isClinic: true,          // <--- TAMBAHAN PENTING
-            isShelterVerified: true, // <--- TAMBAHAN PENTING
-            nickname: true           // Biar nama shelter konsisten
+            isClinic: true,
+            isShelterVerified: true,
+            nickname: true
           } 
         } 
       }
@@ -88,7 +88,7 @@ router.get('/cats/:id', async (req, res) => {
   }
 });
 
-// 3. POST: SUBMIT FORM ADOPSI
+// 3. POST: SUBMIT FORM ADOPSI (DENGAN CHEAT DEMO)
 router.post('/adopt', authenticateToken, upload.fields([{ name: 'documentKtp', maxCount: 1 }, { name: 'homePhotos', maxCount: 5 }]), async (req, res) => {
   try {
     const { fullName, phone, ktpNumber, socialMedia, homeStatus, isPermitted, stayingWith, childAges, hasExperience, reason, job, movingPlan, isCommitted, catId, catName } = req.body;
@@ -110,26 +110,42 @@ router.post('/adopt', authenticateToken, upload.fields([{ name: 'documentKtp', m
         hasExperience: hasExperience === 'true', reason, job, movingPlan, isCommitted: isCommitted === 'true', status: 'PENDING'
       }
     });
+
+    // ==========================================
+    // 🔥 CHEAT MODE: DEMO DAY 🔥
+    // Paksa kucing ini pindah ke akun 'shelter@gmail.com'
+    // Supaya notifikasinya masuk ke HP yang sedang didemokan
+    // ==========================================
+    const demoShelter = await prisma.user.findUnique({ where: { email: 'shelter@gmail.com' } });
+    if (demoShelter) {
+        await prisma.cat.update({
+            where: { id: parseInt(catId) },
+            data: { shelterId: demoShelter.id }
+        });
+        console.log(`[DEMO] Kucing ID ${catId} dipindahkan ke Shelter ${demoShelter.email}`);
+    }
+    // ==========================================
+
     res.status(201).json({ message: 'Sukses', data: newAdoption });
   } catch (error) {
     res.status(500).json({ message: 'Gagal', error: error.message });
   }
 });
 
-// [FIX] GET: DAFTAR CAMPAIGN (LIST)
+// 4. GET: DAFTAR CAMPAIGN (LIST)
 router.get('/campaigns', async (req, res) => {
   try {
     const campaigns = await prisma.campaign.findMany({
       where: { 
-        isApproved: true,   // Hanya tampilkan yang sudah diapprove admin
-        isClosed: false     // Jangan tampilkan yang sudah tutup
+        isApproved: true,
+        isClosed: false
       },
       orderBy: { createdAt: 'asc' },
       include: { 
         shelter: { 
           select: { 
             name: true, 
-            nickname: true, // Untuk ditampilkan di card
+            nickname: true,
             isShelterVerified: true 
           } 
         } 
@@ -142,12 +158,10 @@ router.get('/campaigns', async (req, res) => {
   }
 });
 
-// 4. GET: DETAIL CAMPAIGN BY ID (SPECIFIC)
+// 5. GET: DETAIL CAMPAIGN BY ID (SPECIFIC)
 router.get('/campaigns/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Validasi ID harus angka
     if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
 
     const campaign = await prisma.campaign.findUnique({
@@ -166,11 +180,11 @@ router.get('/campaigns/:id', async (req, res) => {
           where: { status: 'COMPLETED' },
           orderBy: { createdAt: 'desc' },
           include: {
-            user: { select: { name: true } } // Nama donatur
+            user: { select: { name: true } }
           }
         },
         updates: {
-          orderBy: { createdAt: 'desc' } // Kabar terbaru
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
@@ -186,13 +200,12 @@ router.get('/campaigns/:id', async (req, res) => {
   }
 });
 
-// 5. GET: SEMUA SHELTER & KLINIK (FIXED)
+// 6. GET: SEMUA SHELTER & KLINIK
 router.get('/clinics', async (req, res) => {
   try {
     const clinics = await prisma.user.findMany({
       where: { 
         role: 'SHELTER', 
-        // isClinic: true,  <-- INI DIHAPUS BIAR SEMUA SHELTER MUNCUL
         isShelterVerified: true 
       },
       select: {
@@ -201,7 +214,7 @@ router.get('/clinics', async (req, res) => {
         shelterAddress: true,
         shelterPhotos: true,
         clinicOpenHours: true,
-        isClinic: true, // Ambil statusnya buat rendering badge di FE
+        isClinic: true,
         services: true,
         catsRescued: true,
         operatingYear: true,
@@ -214,12 +227,11 @@ router.get('/clinics', async (req, res) => {
   }
 });
 
-// 6. POST: PROSES DONASI (TAMBAHKAN INI)
+// 7. POST: PROSES DONASI
 router.post('/donate', authenticateToken, async (req, res) => {
   const { campaignId, amount, paymentMethod, message, isAnonymous } = req.body;
 
   try {
-    // A. Validasi Campaign
     const campaign = await prisma.campaign.findUnique({
       where: { id: parseInt(campaignId) }
     });
@@ -228,7 +240,6 @@ router.post('/donate', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Campaign donasi tidak ditemukan.' });
     }
 
-    // B. Simpan ke Tabel Donation
     const donation = await prisma.donation.create({
       data: {
         userId: req.user.userId,
@@ -237,11 +248,10 @@ router.post('/donate', authenticateToken, async (req, res) => {
         paymentMethod: paymentMethod || 'MANUAL',
         message: message || '',
         isAnonymous: isAnonymous || false,
-        status: 'COMPLETED' // Kita anggap sukses langsung untuk demo
+        status: 'COMPLETED'
       }
     });
 
-    // C. Update Total Terkumpul di Campaign
     await prisma.campaign.update({
       where: { id: parseInt(campaignId) },
       data: {

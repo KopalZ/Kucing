@@ -7,7 +7,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons'; // Import Ionicons buat Mata
+import { Ionicons } from '@expo/vector-icons'; 
 import api from '../src/services/api';
 
 const { width, height } = Dimensions.get('window');
@@ -16,7 +16,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // State buat mata
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -34,17 +34,20 @@ export default function LoginScreen() {
       
       Alert.alert('Login Berhasil', `Selamat datang, ${user.name}!`);
 
-      // --- LOGIC ROUTING BERDASARKAN ROLE ---
+      // --- LOGIC PENTING: ROUTING BERDASARKAN ROLE ---
       setTimeout(() => { 
         if (user.role === 'ADMIN') {
+          // 1. Jika Admin -> Ke Dashboard Admin
           router.replace('/admin-dashboard');
         } else if (user.role === 'SHELTER') {
+          // 2. Jika Shelter -> Ke Dashboard Shelter
           router.replace('/shelter-dashboard');
         } else {
-          // Default: USER biasa masuk ke Tabs Home
+          // 3. Jika User Biasa -> Ke Home User
           router.replace('/(tabs)/home'); 
         }
       }, 500);
+      // -----------------------------------------------
       
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Terjadi kesalahan saat login.';
@@ -109,7 +112,6 @@ export default function LoginScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Kata Sandi</Text>
-              {/* Container Password Baru dengan Icon Mata */}
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.inputPassword}
@@ -117,7 +119,7 @@ export default function LoginScreen() {
                   placeholderTextColor="#A0A0A0"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry={!showPassword} // Toggle secure
+                  secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                   <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color="#A0A0A0" />
@@ -182,10 +184,8 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8 },
   
-  // Input Biasa (Email)
   input: { height: 52, backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 10, paddingHorizontal: 16, fontSize: 14, color: '#333' },
 
-  // Input Password (Wrapper)
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -194,10 +194,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 10,
-    paddingRight: 12, // Space buat icon
+    paddingRight: 12,
   },
   inputPassword: {
-    flex: 1, // Penuhin sisa ruang
+    flex: 1,
     height: '100%',
     paddingHorizontal: 16,
     fontSize: 14,
