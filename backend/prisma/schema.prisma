@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// --- USER & ROLES ---
+model User {
+  id              Int      @id @default(autoincrement())
+  name            String
+  email           String   @unique
+  password        String
+  role            Role     @default(USER)
+
+  nickname        String?
+  phoneNumber     String?
+  
+  // --- DATA SHELTER & KLINIK ---
+  shelterAddress  String?  @db.Text
+  isClinic        Boolean  @default(false) 
+  clinicOpenHours String?  
+  documentKtp     String?  // Field baru untuk path KTP
+  shelterPhotos   String?  @db.Text // Field baru untuk path banyak foto (comma separated)
+
+  description     String?  @db.Text      // Cerita tentang shelter/klinik
+  operatingYear   Int?                   // Tahun berdiri (misal: 2018)
+  catsRescued     Int      @default(0)   // Total rescue
+  services        String?  @db.Text
+  
+  isShelterVerified Boolean @default(false) 
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relasi tetap sama seperti sebelumnya
+  adoptions       Adoption[]      
+  reports         Report[]        
+  cats            Cat[]           
+  campaigns       Campaign[]      
+  donations       Donation[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+}
+
+// --- KUCING (PRODUK) ---
+model Cat {
+  id          Int      @id @default(autoincrement())
+  name        String
+  age         Int
+  gender      String
+  breed       String
+  description String   @db.Text
+  
+  // Perubahan: Menampung multiple image paths (max 5)
+  images      String   @db.Text 
+  
+  // Fitur Baru: Tags karakteristik & kesehatan (disimpan sebagai string CSV)
+  personality String?  // Contoh: "Manja, Aktif, Penurut"
+  health      String?  // Contoh: "Steril, Vaksin, Bebas Kutu"
+  
+  isAdopted   Boolean  @default(false) 
+  isApproved  Boolean  @default(false) 
+  
+  shelterId   Int
+  shelter     User     @relation(fields: [shelterId], references: [id])
+  adoptions   Adoption[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// --- ADOPSI (UPGRADED) ---
+model Adoption {
+  id           Int            @id @default(autoincrement())
+  userId       Int
+  user         User           @relation(fields: [userId], references: [id])
+  catId        Int
+  cat          Cat            @relation(fields: [catId], references: [id])
+  
+  // --- Step 1: Data Diri ---
+  fullName     String         // Kita simpan manual kalau ada perubahan dari profil
+  phone        String
+  ktpNumber    String
+  socialMedia  String?
+  idCardImage  String         // Path foto KTP
+
+  // --- Step 2: Kondisi Tempat Tinggal ---
+  homeStatus   String         // Milik Sendiri, Sewa, Kos, Apartemen
+  isPermitted  Boolean        @default(true) // Izin pemilik hewan
+  stayingWith  String         // Contoh: "Pasangan, Anak-anak" (Comma separated)
+  childAges    String?        // Contoh: "5, 10" (Comma separated usia anak)
+  houseImages  String         @db.Text // Path banyak foto rumah (Comma separated)
+
+  // --- Step 3: Pengalaman & Komitmen ---
+  hasExperience Boolean       @default(true)
+  reason        String        @db.Text
+  job           String
+  movingPlan    String        @db.Text
+  isCommitted   Boolean       @default(true) // Komitmen biaya medis
+
+  status       AdoptionStatus @default(PENDING) 
+  
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+// --- DONASI & CAMPAIGN ---
+model Campaign {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String   @db.Text
+  targetAmount  Decimal  
+  currentAmount Decimal  @default(0) 
+  imageUrl      String?
+
+  isApproved    Boolean  @default(false) 
+  isClosed      Boolean  @default(false) 
+
+  shelterId     Int
+  shelter       User     @relation(fields: [shelterId], references: [id])
+  donations     Donation[]
+
+  createdAt     DateTime @default(now())
+  deadline      DateTime?
+  updatedAt     DateTime @updatedAt
+  updates       CampaignUpdate[]
+}
+
+// Model Baru
+model CampaignUpdate {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text // Bisa agak panjang dikit
+  campaignId  Int
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Donation {
+  id            Int      @id @default(autoincrement())
+  amount        Int
+  message       String?  @db.Text
+  status        String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  
+  // --- KOLOM BARU (REAL APP FEATURES) ---
+  paymentMethod String   @default("MANUAL") // Contoh: QRIS, GOPAY, BCA
+  isAnonymous   Boolean  @default(false)    // Fitur "Hamba Allah"
+  
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  
+  campaignId    Int
+  campaign      Campaign @relation(fields: [campaignId], references: [id])
+  
+  createdAt     DateTime @default(now())
+}
+
+// --- LAPORAN DARURAT ---
+model Report {
+  id              Int      @id @default(autoincrement())
+  
+  // Identitas Pelapor
+  userId          Int?     // Nullable jika Guest
+  user            User?    @relation(fields: [userId], references: [id])
+  reporterName    String?  // Wajib jika userId null
+  reporterPhone   String?  // Wajib jika userId null
+
+  // Detail Kondisi (Sesuai Desain Figma kamu)
+  conditionTags   String   // Disimpan sebagai string "Tag1, Tag2, Tag3"
+  description     String?  @db.Text
+  
+  // Media
+  imageUrl        String
+  videoUrl        String?
+
+  // Lokasi
+  address         String   @db.Text
+  latitude        Float
+  longitude       Float
+
+  // Status Laporan
+  status          ReportStatus @default(PENDING)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// --- CHAT (REAL TIME) ---
+model Message {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.Text
+  
+  senderId  Int
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  
+  receiverId Int
+  receiver   User    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// --- ENUMS ---
+enum Role {
+  USER
+  ADMIN
+  SHELTER
+}
+
+enum AdoptionStatus {
+  PENDING       
+  INTERVIEW     
+  APPROVED      
+  COMPLETED     
+  REJECTED      
+  CANCELLED     
+}
+
+enum ReportStatus {
+  PENDING
+  VERIFIED
+  ON_PROCESS
+  RESCUED
+  REJECTED
+}
