@@ -201,16 +201,19 @@ router.get('/campaigns/:id', async (req, res) => {
 });
 
 // 6. GET: SEMUA SHELTER & KLINIK
+// 6. GET: SEMUA SHELTER & KLINIK (FIXED: TAMPILKAN SEMUA)
 router.get('/clinics', async (req, res) => {
   try {
     const clinics = await prisma.user.findMany({
       where: { 
         role: 'SHELTER', 
-        isShelterVerified: true 
+        isShelterVerified: true // Syarat: Harus Verified
       },
       select: {
         id: true,
-        nickname: true,
+        name: true,      // <--- WAJIB ADA (Buat Shelter Lama)
+        email: true,     // <--- WAJIB ADA
+        nickname: true,  // <--- Buat Shelter Baru
         shelterAddress: true,
         shelterPhotos: true,
         clinicOpenHours: true,
@@ -223,6 +226,7 @@ router.get('/clinics', async (req, res) => {
     });
     res.json(clinics);
   } catch (error) {
+    console.error("Error clinics:", error);
     res.status(500).json({ error: 'Gagal ambil data shelter' });
   }
 });

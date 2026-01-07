@@ -6,7 +6,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons'; // Tambah Ionicons
 import api from '../src/services/api';
 
 export default function AdminDashboard() {
@@ -19,7 +19,6 @@ export default function AdminDashboard() {
     fetchReports();
   }, []);
 
-  // 1. Ambil Semua Laporan
   const fetchReports = async () => {
     try {
       const res = await api.get('/report/all');
@@ -33,7 +32,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // 2. Fungsi Ubah Status
   const handleUpdateStatus = (id, newStatus) => {
     Alert.alert(
       'Konfirmasi',
@@ -46,7 +44,7 @@ export default function AdminDashboard() {
             try {
               await api.put(`/report/status/${id}`, { status: newStatus });
               Alert.alert('Sukses', 'Status laporan diperbarui!');
-              fetchReports(); // Refresh data
+              fetchReports();
             } catch (error) {
               Alert.alert('Gagal', 'Gagal mengubah status.');
             }
@@ -59,6 +57,23 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
     await AsyncStorage.clear();
     router.replace('/');
+  };
+
+  // --- FUNGSI BARU: CHAT PELAPOR ---
+  const handleChatUser = (userId, userName) => {
+    if (!userId) {
+      Alert.alert("Info", "Laporan ini dibuat oleh Guest (Tanpa Login), tidak bisa di-chat.");
+      return;
+    }
+    // Langsung arahkan ke ruang chat dengan user tersebut
+    router.push({
+      pathname: '/chat-detail',
+      params: { 
+        partnerId: userId, 
+        partnerName: userName || 'Pelapor',
+        partnerRole: 'USER'
+      }
+    });
   };
 
   const renderStatusBadge = (status) => {
@@ -86,9 +101,15 @@ export default function AdminDashboard() {
           <Text style={styles.headerTitle}>🛡️ Admin Panel</Text>
           <Text style={styles.headerSub}>Kelola laporan masuk</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Feather name="log-out" size={20} color="#FFF" />
-        </TouchableOpacity>
+        
+        <View style={{flexDirection: 'row', gap: 10}}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/chat')} style={styles.iconBtn}>
+            <Feather name="message-square" size={20} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
+            <Feather name="log-out" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -112,12 +133,24 @@ export default function AdminDashboard() {
                 <View style={{flex:1}}>
                   <Text style={styles.loc} numberOfLines={2}>📍 {item.address}</Text>
                   <Text style={styles.desc} numberOfLines={2}>"{item.description}"</Text>
-                  <Text style={styles.reporter}>👤 {item.reporterName || 'User App'}</Text>
+                  <Text style={styles.reporter}>👤 {item.reporterName || item.user?.name || 'User App'}</Text>
                 </View>
               </View>
 
               {/* ACTION BUTTONS */}
               <View style={styles.actionRow}>
+                {/* TOMBOL CHAT (BARU) */}
+                {/* Hanya muncul jika pelapornya USER login (punya userId) */}
+                {item.userId && (
+                  <TouchableOpacity 
+                    style={[styles.btn, {backgroundColor: '#12464C', marginRight: 'auto'}]} // margin auto biar ke kiri sendiri
+                    onPress={() => handleChatUser(item.userId, item.reporterName || item.user?.name)}
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={16} color="#FFF" />
+                    <Text style={styles.btnText}>Chat</Text>
+                  </TouchableOpacity>
+                )}
+
                 {item.status === 'PENDING' && (
                   <TouchableOpacity 
                     style={[styles.btn, {backgroundColor: '#2196F3'}]}
@@ -137,7 +170,8 @@ export default function AdminDashboard() {
                     <Text style={styles.btnText}>Selesai</Text>
                   </TouchableOpacity>
                 )}
-
+                
+                {/* Tombol Tolak */}
                 {(item.status === 'PENDING' || item.status === 'ON_PROCESS') && (
                   <TouchableOpacity 
                     style={[styles.btn, {backgroundColor: '#F44336'}]}
@@ -146,10 +180,6 @@ export default function AdminDashboard() {
                     <Feather name="x-circle" size={16} color="#FFF" />
                     <Text style={styles.btnText}>Tolak</Text>
                   </TouchableOpacity>
-                )}
-                
-                {item.status === 'RESCUED' && (
-                  <Text style={{color:'#4CAF50', fontWeight:'bold', fontStyle:'italic'}}>Laporan Selesai ✅</Text>
                 )}
               </View>
             </View>
@@ -165,19 +195,17 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#12464C', padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   headerSub: { fontSize: 12, color: '#E0F2F1' },
-  logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 },
-  
+  iconBtn: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 },
   card: { backgroundColor: '#FFF', borderRadius: 12, padding: 15, marginBottom: 15, elevation: 2 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   date: { fontSize: 12, color: '#999' },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   badgeText: { fontSize: 10, fontWeight: 'bold' },
-  
   thumb: { width: 70, height: 70, borderRadius: 8, backgroundColor: '#EEE' },
   loc: { fontSize: 12, fontWeight: 'bold', color: '#333', marginBottom: 4 },
   desc: { fontSize: 12, color: '#666', marginBottom: 4 },
   reporter: { fontSize: 11, color: '#12464C', fontWeight: '600' },
-
+  
   actionRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 10 },
   btn: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center', gap: 6 },
   btnText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' }

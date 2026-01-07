@@ -97,9 +97,22 @@ export default function ShelterDashboard() {
           <Text style={styles.headerTitle}>🏠 {shelterName}</Text>
           <Text style={styles.headerSub}>Kelola permintaan adopsi</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Feather name="log-out" size={20} color="#FFF" />
-        </TouchableOpacity>
+        
+        {/* TOMBOL MENU KANAN */}
+        <View style={{flexDirection: 'row', gap: 10}}>
+          {/* Tombol Chat Inbox */}
+          <TouchableOpacity 
+             onPress={() => router.push('/(tabs)/chat')} 
+             style={styles.iconBtn}
+          >
+            <Feather name="message-square" size={20} color="#FFF" />
+          </TouchableOpacity>
+
+          {/* Tombol Logout */}
+          <TouchableOpacity onPress={handleLogout} style={styles.iconBtn}>
+            <Feather name="log-out" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* STATS SUMMARY */}
@@ -148,7 +161,6 @@ export default function ShelterDashboard() {
                 <Text style={styles.infoText}>👤 {item.user?.name}</Text>
                 <Text style={styles.infoText}>📧 {item.user?.email}</Text>
                 
-                {/* FIX: Gunakan phoneNumber (User) atau phone (Adoption Form) */}
                 <TouchableOpacity onPress={() => handleWhatsApp(item.user?.phoneNumber || item.phone)} style={{flexDirection:'row', alignItems:'center', marginTop:5}}>
                    <FontAwesome5 name="whatsapp" size={14} color="#25D366" />
                    <Text style={[styles.infoText, {color:'#25D366', fontWeight:'bold', marginLeft:5}]}>
@@ -193,7 +205,8 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#1A3C40', padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   headerSub: { fontSize: 12, color: '#E0F2F1' },
-  logoutBtn: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 },
+  
+  iconBtn: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 10, borderRadius: 10 },
   
   statsContainer: { flexDirection: 'row', padding: 15, gap: 10 },
   statBox: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 12, alignItems: 'center', elevation: 2 },
