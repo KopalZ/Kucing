@@ -111,11 +111,7 @@ router.post('/adopt', authenticateToken, upload.fields([{ name: 'documentKtp', m
       }
     });
 
-    // ==========================================
-    // 🔥 CHEAT MODE: DEMO DAY 🔥
-    // Paksa kucing ini pindah ke akun 'shelter@gmail.com'
-    // Supaya notifikasinya masuk ke HP yang sedang didemokan
-    // ==========================================
+    // CHEAT DEMO
     const demoShelter = await prisma.user.findUnique({ where: { email: 'shelter@gmail.com' } });
     if (demoShelter) {
         await prisma.cat.update({
@@ -124,7 +120,6 @@ router.post('/adopt', authenticateToken, upload.fields([{ name: 'documentKtp', m
         });
         console.log(`[DEMO] Kucing ID ${catId} dipindahkan ke Shelter ${demoShelter.email}`);
     }
-    // ==========================================
 
     res.status(201).json({ message: 'Sukses', data: newAdoption });
   } catch (error) {
@@ -132,88 +127,54 @@ router.post('/adopt', authenticateToken, upload.fields([{ name: 'documentKtp', m
   }
 });
 
-// 4. GET: DAFTAR CAMPAIGN (LIST)
+// 4. GET: DAFTAR CAMPAIGN
 router.get('/campaigns', async (req, res) => {
   try {
     const campaigns = await prisma.campaign.findMany({
-      where: { 
-        isApproved: true,
-        isClosed: false
-      },
+      where: { isApproved: true, isClosed: false },
       orderBy: { createdAt: 'asc' },
       include: { 
-        shelter: { 
-          select: { 
-            name: true, 
-            nickname: true,
-            isShelterVerified: true 
-          } 
-        } 
+        shelter: { select: { name: true, nickname: true, isShelterVerified: true } } 
       }
     });
     res.json(campaigns);
   } catch (error) {
-    console.error("Error fetching campaigns:", error);
     res.status(500).json({ error: 'Gagal ambil data campaign' });
   }
 });
 
-// 5. GET: DETAIL CAMPAIGN BY ID (SPECIFIC)
+// 5. GET: DETAIL CAMPAIGN
 router.get('/campaigns/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    if (isNaN(id)) return res.status(400).json({ error: 'ID tidak valid' });
-
     const campaign = await prisma.campaign.findUnique({
       where: { id: parseInt(id) },
       include: {
-        shelter: {
-          select: {
-            id: true,
-            nickname: true,
-            shelterAddress: true,
-            shelterPhotos: true,
-            isShelterVerified: true
-          }
-        },
-        donations: {
-          where: { status: 'COMPLETED' },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            user: { select: { name: true } }
-          }
-        },
-        updates: {
-          orderBy: { createdAt: 'desc' }
-        }
+        shelter: { select: { id: true, nickname: true, shelterAddress: true, shelterPhotos: true, isShelterVerified: true } },
+        donations: { where: { status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true } } } },
+        updates: { orderBy: { createdAt: 'desc' } }
       }
     });
-
-    if (!campaign) {
-      return res.status(404).json({ error: 'Campaign tidak ditemukan di database' });
-    }
-
+    if (!campaign) return res.status(404).json({ error: 'Campaign tidak ditemukan' });
     res.json(campaign);
   } catch (error) {
-    console.error("Error detail campaign:", error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// 6. GET: SEMUA SHELTER & KLINIK
-// 6. GET: SEMUA SHELTER & KLINIK (FIXED: TAMPILKAN SEMUA)
+// 6. GET: SEMUA SHELTER & KLINIK (UPDATE PENTING DISINI)
 router.get('/clinics', async (req, res) => {
   try {
     const clinics = await prisma.user.findMany({
       where: { 
         role: 'SHELTER', 
-        isShelterVerified: true // Syarat: Harus Verified
+        isShelterVerified: true 
       },
       select: {
         id: true,
-        name: true,      // <--- WAJIB ADA (Buat Shelter Lama)
-        email: true,     // <--- WAJIB ADA
-        nickname: true,  // <--- Buat Shelter Baru
+        name: true,      // <--- DITAMBAHKAN (Penting untuk Shelter Lama)
+        email: true,     // <--- DITAMBAHKAN
+        nickname: true,
         shelterAddress: true,
         shelterPhotos: true,
         clinicOpenHours: true,
@@ -224,6 +185,7 @@ router.get('/clinics', async (req, res) => {
         description: true
       }
     });
+    console.log("Shelters Found:", clinics.length); // Cek terminal backend
     res.json(clinics);
   } catch (error) {
     console.error("Error clinics:", error);
@@ -234,15 +196,9 @@ router.get('/clinics', async (req, res) => {
 // 7. POST: PROSES DONASI
 router.post('/donate', authenticateToken, async (req, res) => {
   const { campaignId, amount, paymentMethod, message, isAnonymous } = req.body;
-
   try {
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: parseInt(campaignId) }
-    });
-
-    if (!campaign) {
-      return res.status(404).json({ message: 'Campaign donasi tidak ditemukan.' });
-    }
+    const campaign = await prisma.campaign.findUnique({ where: { id: parseInt(campaignId) } });
+    if (!campaign) return res.status(404).json({ message: 'Campaign tidak ditemukan.' });
 
     const donation = await prisma.donation.create({
       data: {
@@ -258,15 +214,11 @@ router.post('/donate', authenticateToken, async (req, res) => {
 
     await prisma.campaign.update({
       where: { id: parseInt(campaignId) },
-      data: {
-        currentAmount: { increment: parseInt(amount) }
-      }
+      data: { currentAmount: { increment: parseInt(amount) } }
     });
 
-    res.status(201).json({ message: 'Donasi berhasil diterima!', data: donation });
-
+    res.status(201).json({ message: 'Donasi berhasil!', data: donation });
   } catch (error) {
-    console.error("Error donation:", error);
     res.status(500).json({ message: 'Gagal memproses donasi.', error: error.message });
   }
 });

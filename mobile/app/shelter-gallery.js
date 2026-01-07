@@ -20,8 +20,9 @@ export default function ShelterGalleryScreen() {
 
   const fetchShelters = async () => {
     try {
-      const res = await api.get('/clinics'); 
-      console.log("Data Shelter yang didapat:", res.data.length); // Cek jumlah di terminal
+      // [FIX] Tambahkan '/data' karena di server.js mounted di '/api/data'
+      const res = await api.get('/data/clinics'); 
+      console.log("Data Shelter:", res.data.length); 
       setShelters(res.data);
     } catch (error) {
       console.log('Error fetching shelters:', error);
@@ -30,13 +31,14 @@ export default function ShelterGalleryScreen() {
     }
   };
 
-  // --- FILTER PENCARIAN ---
+  // --- FILTER PENCARIAN (ANTI ERROR) ---
   const filteredShelters = shelters.filter(item => {
-    if (!search) return true; // Kalau search kosong, TAMPILKAN SEMUA
+    if (!search) return true; 
 
     const searchText = search.toLowerCase();
     
-    // Fallback: Cek nickname, kalau kosong cek name, kalau kosong anggap string kosong
+    // Fallback: Cek nickname, kalau kosong cek name, kalau kosong string kosong
+    // Ini mencegah error "toLowerCase of null"
     const nameToCheck = item.nickname || item.name || '';
     const addressToCheck = item.shelterAddress || '';
     const servicesToCheck = item.services || '';
